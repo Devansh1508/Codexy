@@ -41,6 +41,7 @@ coverage/
 # dotenv variants (keep local/env files out, but do not duplicate exact .env)
 .env.*
 .env.*.local
+!.env.example
 
 # IDEs and editors
 .vscode/
