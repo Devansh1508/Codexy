@@ -5,20 +5,23 @@ import { getSystemPrompt } from "../prompt.js";
 
 
 const chatController=async (req: Request, res: Response)=>{
-    const prompt=req.body.prompt;
+    // messages contains the array of messages from the user
+    // and each message has role and content 
+    const messages=req.body.messages;
 
     const response = await ai.models.generateContent({
         model: CONFIG.model_name,
-        contents: prompt,
+        contents: messages,
         config: {
             systemInstruction: getSystemPrompt(),
-            maxOutputTokens: CONFIG.MAX_OUTPUT_TOKEN,
+            maxOutputTokens: CONFIG.MAX_OUTPUT_TOKEN_CHAT,
         }
     });
 
     res.json({
-        response: response
+        response: response.candidates?.[0]?.content?.parts?.[0]?.text
     });
+    return;
 }
 
 export {chatController};

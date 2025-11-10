@@ -12,18 +12,20 @@ const template=async (req: Request, res: Response)=>{
 
     const response = await ai.models.generateContent({
         model: CONFIG.model_name,
-        contents:[{
-            role:'user',
-            parts:[{text:prompt}]
-        }],
+        contents: prompt,
         config: {
             systemInstruction: "Return either react or node on what do you think this project is based on. Only return a single word react or node. Do not return anything extra.",
             maxOutputTokens: CONFIG.MAX_OUTPUT_TOKEN_TEMPLATE,
-    }});
+    }
+});
+
+    // console.log("Response from AI model in template controller:", response);
+
+    
 
     const templateResponse = response.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    console.log("just above the if else");
+    // console.log("just above the if else",response);
     if(templateResponse=="react"){
         // Handle react case
         res.json({
