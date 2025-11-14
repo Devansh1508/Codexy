@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { useAppDispatch } from '../hooks/hooks';
 import { setPromptAsync } from '../redux/slices/prompt';
-import type { RootState } from "../redux/store";
 
 interface LandingProps {
   onGenerate: (prompt: string) => void;

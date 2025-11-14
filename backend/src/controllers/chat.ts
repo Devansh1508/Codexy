@@ -8,6 +8,7 @@ const chatController = async (req: Request, res: Response) => {
     // messages contains the array of messages from the user
     // and each message has role and content
     const messages = req.body.messages;
+    console.log("Received messages:", messages);
 
     const response = await ai.models.generateContent({
       model: CONFIG.model_name,
