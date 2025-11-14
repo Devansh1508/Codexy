@@ -1,33 +1,23 @@
 import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
-import { useSelector,useDispatch } from 'react-redux';
-import { setPrompt } from '../redux/slices/prompt';
+import { useAppDispatch } from '../hooks/hooks';
+import { setPromptAsync } from '../redux/slices/prompt';
+import type { RootState } from "../redux/store";
 
 interface LandingProps {
   onGenerate: (prompt: string) => void;
 }
 
 export default function Landing({ onGenerate }: LandingProps) {
-  const [prompt, setPrompt] = useState('');
-  const globalPrompt = useSelector((state: any) => state.prompt.value);
+  const [prompt, setLocalPrompt] = useState('');
+  const dispatch = useAppDispatch();
 
   const handleSubmit =async (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim()) {
       
+      dispatch(setPromptAsync(prompt.trim()));
 
-      
-
-      // const messages=[
-      //   {
-      //     role:"user",
-      //     parts:[
-      //       {
-      //         "text":
-      //       }
-      //     ]
-      //   }
-      // ]
       onGenerate(prompt);
     }
   };
@@ -51,7 +41,7 @@ export default function Landing({ onGenerate }: LandingProps) {
           <div className="relative">
             <textarea
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+              onChange={(e) => setLocalPrompt(e.target.value)}
               placeholder="Describe the website you want to create... (e.g., 'A modern portfolio website with a hero section, project gallery, and contact form')"
               className="w-full h-40 px-6 py-4 bg-slate-800/50 border-2 border-slate-700 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 resize-none transition-all duration-200 backdrop-blur-sm"
               required

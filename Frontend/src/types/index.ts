@@ -29,6 +29,13 @@ export interface FileItem {
   path: string;
 }
 
+// interface FileNode {
+//   name: string;
+//   type: 'file' | 'folder';
+//   children?: FileNode[];
+//   content?: string;
+// }
+
 export interface FileViewerProps {
   file: FileItem | null;
   onClose: () => void;

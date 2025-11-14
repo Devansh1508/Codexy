@@ -2,19 +2,11 @@ import { useState, useEffect } from 'react';
 import { ChevronRight, FileCode, Folder, CheckCircle2, Circle, Loader2 } from 'lucide-react';
 import axios from "axios";
 import { BACKEND_URL } from '../config';
+import { useAppSelector } from '../hooks/hooks';
+import { parseXml } from '../utils/step';
+import { type Step,type FileItem,StepType } from '../types/index';
 
-interface Step {
-  id: number;
-  title: string;
-  status: 'pending' | 'in_progress' | 'completed';
-}
 
-interface FileNode {
-  name: string;
-  type: 'file' | 'folder';
-  children?: FileNode[];
-  content?: string;
-}
 
 interface GeneratorProps {
   prompt: string;
@@ -22,61 +14,104 @@ interface GeneratorProps {
 }
 
 export default function Generator({ prompt }: GeneratorProps) {
-  const [steps, setSteps] = useState<Step[]>([
-    { id: 1, title: 'Analyzing requirements', status: 'in_progress' },
-    { id: 2, title: 'Creating project structure', status: 'pending' },
-    { id: 3, title: 'Generating components', status: 'pending' },
-    { id: 4, title: 'Setting up styles', status: 'pending' },
-    { id: 5, title: 'Building application', status: 'pending' },
-  ]);
+  const [steps, setSteps] = useState<Step[]>([]);
 
-  const [files, setFiles] = useState<FileNode[]>([
-    {
-      name: 'src',
-      type: 'folder',
-      children: [
-        { name: 'App.tsx', type: 'file', content: 'Loading...' },
-        { name: 'index.css', type: 'file', content: 'Loading...' },
-        {
-          name: 'components',
-          type: 'folder',
-          children: [
-            { name: 'Header.tsx', type: 'file' },
-            { name: 'Hero.tsx', type: 'file' },
-            { name: 'Footer.tsx', type: 'file' },
-          ],
-        },
-      ],
-    },
-    { name: 'package.json', type: 'file' },
-    { name: 'index.html', type: 'file' },
-  ]);
+  const userPrompt=useAppSelector(state=>state.prompt.value)
+
+  const [files, setFiles] = useState<FileItem[]>([]);
+
+
+  // updating the file list 
+  useEffect(() => {
+    let originalFiles = [...files];
+    let updateHappened = false;
+    steps.filter(({status}) => status === "pending").map(step => {
+      updateHappened = true;
+      if (step?.type === StepType.CreateFile) {
+        let parsedPath = step.path?.split("/") ?? []; // ["src", "components", "App.tsx"]
+        let currentFileStructure = [...originalFiles]; // {}
+        const finalAnswerRef = currentFileStructure;
+  
+        let currentFolder = ""
+        while(parsedPath.length) {
+          currentFolder =  `${currentFolder}/${parsedPath[0]}`;
+          const currentFolderName = parsedPath[0];
+          parsedPath = parsedPath.slice(1);
+  
+          if (!parsedPath.length) {
+            // final file
+            const file = currentFileStructure.find(x => x.path === currentFolder)
+            if (!file) {
+              currentFileStructure.push({
+                name: currentFolderName,
+                type: 'file',
+                path: currentFolder,
+                content: step.code
+              })
+            } else {
+              file.content = step.code;
+            }
+          } else {
+            /// in a folder
+            const folder = currentFileStructure.find(x => x.path === currentFolder)
+            if (!folder) {
+              // create the folder
+              currentFileStructure.push({
+                name: currentFolderName,
+                type: 'folder',
+                path: currentFolder,
+                children: []
+              })
+            }
+  
+            currentFileStructure = currentFileStructure.find(x => x.path === currentFolder)!.children!;
+          }
+        }
+        originalFiles = finalAnswerRef;
+      }
+
+    })
+
+    if (updateHappened) {
+
+      setFiles(originalFiles)
+      setSteps(steps => steps.map((s: Step) => {
+        return {
+          ...s,
+          status: "completed"
+        }
+        
+      }))
+    }
+    console.log(files);
+  }, [steps, files]);
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src']));
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
-  useEffect(() => {
-    let currentStep = 0;
-    const interval = setInterval(() => {
-      if (currentStep < steps.length) {
-        setSteps((prev) =>
-          prev.map((step, idx) => {
-            if (idx === currentStep) {
-              return { ...step, status: 'completed' };
-            } else if (idx === currentStep + 1) {
-              return { ...step, status: 'in_progress' };
-            }
-            return step;
-          })
-        );
-        currentStep++;
-      } else {
-        clearInterval(interval);
-      }
-    }, 2000);
+  // useEffect(() => {
+  //   if (steps.length === 0) return;  // nothing to animate
 
-    return () => clearInterval(interval);
-  }, [steps.length]);
+  //   let currentStep = 0;
+  //   const interval = setInterval(() => {
+  //     setSteps(prev => {
+  //       return prev.map((step, idx) => {
+  //         if (idx === currentStep) return { ...step, status: "completed" };
+  //         if (idx === currentStep + 1) return { ...step, status: "in-progress" };
+  //         return step;
+  //       });
+  //     });
+
+  //     currentStep++;
+
+  //     if (currentStep >= steps.length) {
+  //       clearInterval(interval);
+  //     }
+  //   }, 2000);
+
+  //   return () => clearInterval(interval);
+  // }, [steps]);   // run once when steps are first set
+
 
   const toggleFolder = (path: string) => {
     setExpandedFolders((prev) => {
@@ -90,9 +125,9 @@ export default function Generator({ prompt }: GeneratorProps) {
     });
   };
 
-  const renderFileTree = (nodes: FileNode[], path: string = '') => {
+  const renderFileTree = (nodes: FileItem[]) => {
     return nodes.map((node) => {
-      const currentPath = path ? `${path}/${node.name}` : node.name;
+      const currentPath = node.path;
       const isExpanded = expandedFolders.has(currentPath);
       const isSelected = selectedFile === currentPath;
 
@@ -125,7 +160,7 @@ export default function Generator({ prompt }: GeneratorProps) {
             <span className="text-sm text-slate-200">{node.name}</span>
           </div>
           {node.type === 'folder' && isExpanded && node.children && (
-            <div className="ml-4">{renderFileTree(node.children, currentPath)}</div>
+            <div className="ml-4">{renderFileTree(node.children)}</div>
           )}
         </div>
       );
@@ -136,7 +171,7 @@ export default function Generator({ prompt }: GeneratorProps) {
     switch (status) {
       case 'completed':
         return <CheckCircle2 className="w-5 h-5 text-green-400" />;
-      case 'in_progress':
+      case 'in-progress':
         return <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />;
       default:
         return <Circle className="w-5 h-5 text-slate-500" />;
@@ -144,19 +179,38 @@ export default function Generator({ prompt }: GeneratorProps) {
   };
 
   const chatCall=async ()=>{
-    const response=await axios.post(`${BACKEND_URL}/template/checkAppType`,{
-        prompt:prompt.trim()
+    const response=await axios.post(`${BACKEND_URL}/api/v1/template/checkAppType`,{
+        prompt:userPrompt.trim()
       });
       
-    const {prompts,uiPrompts}=response.data;
+      const {prompts,uiPrompts}=response.data;
+      const parsedXml=await parseXml(uiPrompts[0]);
+      console.log(parsedXml);
+      setSteps(parsedXml);
+      console.log(parsedXml);
 
-    const stepsResponse=await axios.post(`${BACKEND_URL}/chat/chatRoutes`,{
-        messages:[...prompts,prompt].map(text =>({
-          role:"user",
-          parts:[{text}]
-        }))
-      });
+    // const stepsResponse=await axios.post(`${BACKEND_URL}/api/v1/chat/chatRoutes`,{
+    //     messages:[...prompts,userPrompt].map(text =>({
+    //       role:"user",
+    //       parts:[{text}]
+    //     }))
+    //   });
   }
+
+  // api call 
+  useEffect(()=>{
+    if(!userPrompt?.trim())return;
+
+    const callingBackend = async () => {
+      try{
+        await chatCall();
+      }catch(err){
+        console.log("Error in Generator useEffect:",err);
+      }
+    }
+
+    callingBackend();
+  }, [userPrompt]);
 
   return (
     <div className="h-screen bg-slate-900 flex flex-col">
@@ -186,7 +240,7 @@ export default function Generator({ prompt }: GeneratorProps) {
                   <div className="text-sm font-medium text-slate-200">{step.title}</div>
                   <div className="text-xs text-slate-500 mt-1">
                     {step.status === 'completed' && 'Complete'}
-                    {step.status === 'in_progress' && 'In progress...'}
+                    {step.status === 'in-progress' && 'In progress...'}
                     {step.status === 'pending' && 'Pending'}
                   </div>
                 </div>
