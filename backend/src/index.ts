@@ -7,6 +7,7 @@ import { basePrompt as REACT_BASE_PROMPT } from "./default/react.js";
 import express from "express";
 import templateRoutes from "./routes/template.js"; 
 import chatRoutes from "./routes/chat.js"; 
+import cors from "cors";
 require("dotenv").config();
 // The client gets the API key from the environment variable `GEMINI_API_KEY`.
 
@@ -14,6 +15,9 @@ const prompt_text="create a todo app.";
 // const token_Input=count_tokens(prompt_text);
 
 const app=express();
+app.use(cors({
+    origin:'http://localhost:5173'
+}));
 app.use(express.json());
 app.use("/api/v1/template",templateRoutes);
 app.use("/api/v1/chat",chatRoutes);
